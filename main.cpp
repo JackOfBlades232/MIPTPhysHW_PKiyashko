@@ -66,49 +66,6 @@ public:
     }
 };
 
-template<size_t t_dim_x, size_t t_dim_y>
-class VectorField : public sf::Drawable {
-    struct Arrow : public sf::Drawable {
-        sf::Vector2f orig, dir;
-
-        virtual void draw(sf::RenderTarget &target, sf::RenderStates states) const override { 
-            // @TODO: settable widths/sizes, cached shapes
-            float tri_h = vlen(dir)/3;
-            float tri_hw = tri_h/3;
-            sf::Vertex body[] = { orig, orig + dir };
-            sf::Vector2f tri_tip = orig+dir;
-            sf::Vector2f xstep = vnormalize(-dir);
-            sf::Vector2f ystep = { -xstep.y, xstep.x };
-            sf::Vertex tri[] = { tri_tip, tri_tip + xstep*tri_h + ystep*tri_hw, tri_tip + xstep*tri_h - ystep*tri_hw };
-
-            target.draw(body, 2, sf::Lines, states);
-            target.draw(tri, 3, sf::Triangles, states);
-        }
-    };
-
-    Arrow m_arrows[t_dim_y][t_dim_x];
-
-public:
-    VectorField(sf::Vector2f base, sf::Vector2f step) {
-        for (size_t y = 0; y < t_dim_y; y++)
-            for (size_t x = 0; x < t_dim_x; x++)
-                m_arrows[y][x].orig = { base.x + (float)x * step.x, base.y + (float)y * step.y };
-    }
-
-    void SetArrowDirections(std::function<sf::Vector2f(sf::Vector2f)> field_func) {
-        for (size_t y = 0; y < t_dim_y; y++)
-            for (size_t x = 0; x < t_dim_x; x++)
-                m_arrows[y][x].dir = field_func(m_arrows[y][x].orig);
-    }
-
-    virtual void draw(sf::RenderTarget &target, sf::RenderStates states) const override { 
-        for (size_t y = 0; y < t_dim_y; y++)
-            for (size_t x = 0; x < t_dim_x; x++)
-                target.draw(m_arrows[y][x], states);
-    }
-
-};
-
 int main()
 {
     HINSTANCE instance = GetModuleHandle(NULL);
@@ -140,8 +97,6 @@ int main()
     Spring<30> spring(25.f, 50.f);
     sf::Vector2f spring_anchor = sf::Vector2f(960, 220);
 
-    //VectorField<1920/50, 1080/50> vf({ 25.f, 25.f }, { 50.f, 50.f });
-
     sf::Clock clock;
 
     MSG message;
@@ -162,9 +117,7 @@ int main()
 
             body.setPosition(ball_pos);
             spring.SetPositions(spring_anchor, ball_anchor);
-            //vf.SetArrowDirections(field_func);
 
-            //view.draw(vf);
             view.draw(spring);
             view.draw(body);
 
