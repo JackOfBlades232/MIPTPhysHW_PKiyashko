@@ -1,12 +1,12 @@
 #include <Eigen/Dense>
-#include <iostream>
-
 #include <SFML/Graphics.hpp>
 #include <windows.h>
+
+#include <iostream>
+#include <functional>
+
 #include <cmath>
-
-HWND button;
-
+#include <cassert>
 
 LRESULT CALLBACK on_event(HWND handle, UINT message, WPARAM wParam, LPARAM lParam)
 {
@@ -16,19 +16,96 @@ LRESULT CALLBACK on_event(HWND handle, UINT message, WPARAM wParam, LPARAM lPara
         PostQuitMessage(0);
         return 0;
     } break;
-
-    case WM_COMMAND: 
-    {
-        if (reinterpret_cast<HWND>(lParam) == button) {
-            PostQuitMessage(0);
-            return 0;
-        }
-    } break;
     }
 
     return DefWindowProc(handle, message, wParam, lParam);
 }
 
+float vlen(sf::Vector2f v) { return sqrtf(v.x*v.x + v.y*v.y); }
+sf::Vector2f vnormalize(sf::Vector2f v) { return v / vlen(v); }
+
+template <size_t t_num_segments>
+class Spring : public sf::Drawable {
+    float m_width;
+    sf::Vertex m_segment_points[t_num_segments + 1] = {};
+
+public:
+    Spring(float width) : m_width(width) {}
+
+    void SetPositions(sf::Vector2f start, sf::Vector2f end) {
+        float len = vlen(end - start);
+        assert(len > 0.01f);
+
+        float half_w = m_width*0.5f;
+        float proj = len / ((t_num_segments - 1) * 2);
+
+        sf::Vector2f xstep = vnormalize(end - start);
+        sf::Vector2f ystep = { -xstep.y, xstep.x };
+        xstep *= proj;
+        ystep *= half_w;
+
+        sf::Vector2f segment_positions[t_num_segments + 1];
+        segment_positions[0] = start;
+        segment_positions[1] = start + xstep + ystep;
+        int mul = -1;
+        for (int i = 2; i < t_num_segments; i++)
+        {
+            segment_positions[i] = segment_positions[i-1] + 2.f * xstep + 2.f * mul * ystep;
+            mul *= -1;
+        }
+        segment_positions[t_num_segments] = end;
+
+        for (int i = 0; i < t_num_segments + 1; i++)
+            m_segment_points[i] = sf::Vertex(segment_positions[i]);
+    }
+
+    virtual void draw(sf::RenderTarget &target, sf::RenderStates states) const override { 
+        target.draw(m_segment_points, t_num_segments + 1, sf::LinesStrip, states);
+    }
+};
+
+template<size_t t_dim_x, size_t t_dim_y>
+class VectorField : public sf::Drawable {
+    struct Arrow : public sf::Drawable {
+        sf::Vector2f orig, dir;
+
+        virtual void draw(sf::RenderTarget &target, sf::RenderStates states) const override { 
+            // @TODO: settable widths/sizes, cached shapes
+            float tri_h = vlen(dir)/3;
+            float tri_hw = tri_h/3;
+            sf::Vertex body[] = { orig, orig + dir };
+            sf::Vector2f tri_tip = orig+dir;
+            sf::Vector2f xstep = vnormalize(-dir);
+            sf::Vector2f ystep = { -xstep.y, xstep.x };
+            sf::Vertex tri[] = { tri_tip, tri_tip + xstep*tri_h + ystep*tri_hw, tri_tip + xstep*tri_h - ystep*tri_hw };
+
+            target.draw(body, 2, sf::Lines, states);
+            target.draw(tri, 3, sf::Triangles, states);
+        }
+    };
+
+    Arrow m_arrows[t_dim_y][t_dim_x];
+
+public:
+    VectorField(sf::Vector2f base, sf::Vector2f step) {
+        for (size_t y = 0; y < t_dim_y; y++)
+            for (size_t x = 0; x < t_dim_x; x++)
+                m_arrows[y][x].orig = { base.x + (float)x * step.x, base.y + (float)y * step.y };
+    }
+
+    void SetArrowDirections(std::function<sf::Vector2f(sf::Vector2f)> field_func) {
+        for (size_t y = 0; y < t_dim_y; y++)
+            for (size_t x = 0; x < t_dim_x; x++)
+                m_arrows[y][x].dir = field_func(m_arrows[y][x].orig);
+    }
+
+    virtual void draw(sf::RenderTarget &target, sf::RenderStates states) const override { 
+        for (size_t y = 0; y < t_dim_y; y++)
+            for (size_t x = 0; x < t_dim_x; x++)
+                target.draw(m_arrows[y][x], states);
+    }
+
+};
 
 int main()
 {
@@ -53,25 +130,24 @@ int main()
     windowClass.hCursor = 0;
     windowClass.hbrBackground = reinterpret_cast<HBRUSH>(COLOR_BACKGROUND);
     windowClass.lpszMenuName = NULL;
-    windowClass.lpszClassName = TEXT("SFML App");
+    windowClass.lpszClassName = TEXT("Phys HW");
     RegisterClass(&windowClass);
 
-    HWND window = CreateWindow(TEXT("SFML App"), TEXT("SFML Win32"), WS_SYSMENU | WS_VISIBLE, 200, 200, 660, 520, NULL, NULL, instance, NULL);
+    HWND window = CreateWindow(TEXT("Phys HW"), TEXT("Phys HW"), WS_SYSMENU | WS_VISIBLE, 0, 0, 1920, 1080, NULL, NULL, instance, NULL);
 
-    button = CreateWindow(TEXT("BUTTON"), TEXT("Quit"), WS_CHILD | WS_VISIBLE, 560, 440, 80, 40, window, NULL, instance, NULL);
+    sf::RenderWindow view(window);
 
-    HWND view1 = CreateWindow(TEXT("STATIC"), NULL, WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS, 20, 20, 300, 400, window, NULL, instance, NULL);
-    HWND view2 = CreateWindow(TEXT("STATIC"), NULL, WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS, 340, 20, 300, 400, window, NULL, instance, NULL);
-    sf::RenderWindow SFMLView1(view1);
-    sf::RenderWindow SFMLView2(view2);
+    // @TODO: test spring
 
-    sf::Texture texture1, texture2;
-    if (!texture1.loadFromFile("Assets/image1.jpg") || !texture2.loadFromFile("Assets/image2.jpg"))
-        return EXIT_FAILURE;
-    sf::Sprite sprite1(texture1);
-    sf::Sprite sprite2(texture2);
-    sprite1.setOrigin(sf::Vector2f(texture1.getSize()) / 2.f);
-    sprite1.setPosition(sprite1.getOrigin());
+    sf::CircleShape body(35);
+    body.setFillColor(sf::Color::Black);
+    body.setOutlineColor(sf::Color::White);
+    body.setOutlineThickness(-4);
+
+    Spring<30> spring(25.f);
+    sf::Vector2f spring_anchor = sf::Vector2f(960, 320);
+
+    VectorField<(1920/50) - 1, (1080/50) - 1> vf({ 50.f, 50.f }, { 50.f, 50.f });
 
     sf::Clock clock;
 
@@ -84,26 +160,29 @@ int main()
         } else {
             float time = clock.getElapsedTime().asSeconds();
 
-            SFMLView1.clear();
-            SFMLView2.clear();
+            sf::Vector2f ball_pos = sf::Vector2f(960, 540) + 100.f * sf::Vector2f(sinf(time), cosf(time));
+            sf::Vector2f ball_center = ball_pos + sf::Vector2f(body.getRadius(), body.getRadius());
+            sf::Vector2f ball_anchor = ball_center + vnormalize(spring_anchor - ball_center) * body.getRadius();
+            auto field_func = [&time](sf::Vector2f v) -> sf::Vector2f { return 25.f * sf::Vector2f(sinf(3.f*time), cosf(3.f*time)); };
 
-            sprite1.setRotation(time * 100);
-            SFMLView1.draw(sprite1);
+            view.clear();
 
-            sprite2.setPosition(std::cos(time) * 100.f, 0.f);
-            SFMLView2.draw(sprite2);
+            body.setPosition(ball_pos);
+            spring.SetPositions(spring_anchor, ball_anchor);
+            vf.SetArrowDirections(field_func);
 
-            SFMLView1.display();
-            SFMLView2.display();
+            view.draw(vf);
+            view.draw(spring);
+            view.draw(body);
+
+            view.display();
         }
     }
 
-    SFMLView1.close();
-    SFMLView2.close();
-
+    view.close();
     DestroyWindow(window);
 
-    UnregisterClass(TEXT("SFML App"), instance);
+    UnregisterClass(TEXT("Phys HW"), instance);
 
     return EXIT_SUCCESS;
 }
