@@ -97,7 +97,35 @@ int main()
     Spring<30> spring(25.f, 50.f);
     sf::Vector2f spring_anchor = sf::Vector2f(960, 220);
 
+
+    asc::state_t state;
+    state.reserve(100);
+
+    asc::Param pos_x(state), pos_y(state);
+    asc::Param vel_x(state), vel_y(state);
+
+    double k = 2000.0;
+    double d = 5.0;
+    double g = 10.0;
+    double m = 1.0;
+
+    double l0 = 200.0;
+
+    pos_x = 960;
+    pos_y = 540;
+    vel_x = 0;
+    vel_y = 0;
+
+    asc::RK4 integrator;
+
+    // @TODO:  finish this as a test, port back and do the analytic with linearization
+    auto system = [&](const asc::state_t &x, asc::state_t &D, const double t) {
+            
+        };
+
+
     sf::Clock clock;
+    float prev_time = 0.f;
 
     MSG message;
     message.message = static_cast<UINT>(~WM_QUIT);
@@ -107,8 +135,11 @@ int main()
             DispatchMessage(&message);
         } else {
             float time = clock.getElapsedTime().asSeconds();
+            float dt = time - prev_time;
+            prev_time = time;
 
-            sf::Vector2f ball_pos = sf::Vector2f(960, 540) + 100.f * sf::Vector2f(sinf(time), cosf(time));
+
+
             sf::Vector2f ball_center = ball_pos + sf::Vector2f(body.getRadius(), body.getRadius());
             sf::Vector2f ball_anchor = ball_center + vnormalize(spring_anchor - ball_center) * body.getRadius();
             auto field_func = [&time](sf::Vector2f v) -> sf::Vector2f { return 25.f * sf::Vector2f(sinf(3.f*time), cosf(3.f*time)); };
