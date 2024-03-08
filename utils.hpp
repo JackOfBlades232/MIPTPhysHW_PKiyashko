@@ -4,5 +4,5 @@
 
 #include <cmath>
 
-float vlen(sf::Vector2f v) { return sqrtf(v.x*v.x + v.y*v.y); }
-sf::Vector2f vnormalize(sf::Vector2f v) { return v / vlen(v); }
+inline float vlen(sf::Vector2f v) { return sqrtf(v.x*v.x + v.y*v.y); }
+inline sf::Vector2f vnormalize(sf::Vector2f v) { return v / vlen(v); }
