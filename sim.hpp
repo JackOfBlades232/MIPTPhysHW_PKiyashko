@@ -6,7 +6,7 @@ namespace sim
 
 void init();
 void update(float dt, float time);
-void draw(sf::RenderTarget &view);
+void draw(sf::RenderWindow &view);
 
 };
 

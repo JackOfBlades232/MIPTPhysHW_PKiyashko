@@ -54,13 +54,17 @@ void update(float dt, float time)
     ball_anchor = ball_center + vnormalize(spring_anchor - ball_center) * body.getRadius();
 }
 
-void draw(sf::RenderTarget &view)
+void draw(sf::RenderWindow &view)
 {
     body.setPosition(ball_pos);
     spring.SetPositions(spring_anchor, ball_anchor);
 
-    view.draw(spring);
-    view.draw(body);
+    view.clear();
+    {
+        view.draw(spring);
+        view.draw(body);
+    }
+    view.display();
 }
 
 }

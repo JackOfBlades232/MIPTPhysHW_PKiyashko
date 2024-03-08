@@ -61,10 +61,7 @@ int main()
             prev_time = time;
 
             sim::update(dt, time);
-
-            view.clear();
             sim::draw(view);
-            view.display();
         }
     }
 
