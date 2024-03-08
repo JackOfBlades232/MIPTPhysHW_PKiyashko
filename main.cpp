@@ -1,14 +1,18 @@
+#include "win.hpp"
 #include "sim.hpp"
 
 #include <SFML/Graphics.hpp>
 #include <ascent/Ascent.h>
 #include <windows.h>
+#include <windowsx.h>
 
 #include <iostream>
 #include <functional>
 
 #include <cmath>
 #include <cassert>
+
+static input_t input = {};
 
 LRESULT CALLBACK on_event(HWND handle, UINT message, WPARAM wParam, LPARAM lParam)
 {
@@ -18,6 +22,15 @@ LRESULT CALLBACK on_event(HWND handle, UINT message, WPARAM wParam, LPARAM lPara
         PostQuitMessage(0);
         return 0;
     } break;
+
+    case WM_MOUSEMOVE:
+    {
+        input.mouse_x = GET_X_LPARAM(lParam);
+        input.mouse_y = GET_Y_LPARAM(lParam);
+    } break;
+
+    default:
+        break;
     }
 
     return DefWindowProc(handle, message, wParam, lParam);
@@ -60,7 +73,7 @@ int main()
             float dt = time - prev_time;
             prev_time = time;
 
-            sim::update(dt, time);
+            sim::update(dt, input);
             sim::draw(view);
         }
     }

@@ -1,68 +1,86 @@
 #include "sim.hpp"
 #include "draw.hpp"
+#include "phys.hpp"
 
 #include <ascent/Ascent.h>
+
+#include <vector>
+#include <cmath>
+#define M_PI 3.14159265358979323846   // pi
 
 namespace sim
 {
 
-static sf::CircleShape body(35);
-static Spring<30> spring(25.f, 50.f);
-static sf::Vector2f spring_anchor = sf::Vector2f(960, 220);
+static constexpr int LINE_NUM_POINTS = 20;
 
-static sf::Vector2f ball_pos;
-static sf::Vector2f ball_center;
-static sf::Vector2f ball_anchor;
+static draw::CircularLine<LINE_NUM_POINTS> shape(7, sf::Color(255, 0, 0, 255));
+static sf::Vector2f point_positions[LINE_NUM_POINTS];
 
+static double time = 0.0;
+static asc::Euler integrator;
 static asc::state_t state;
 
-static asc::Param pos_x(state), pos_y(state);
-static asc::Param vel_x(state), vel_y(state);
-
-static const double k = 2000.0;
-static const double d = 5.0;
-static const double g = 10.0;
-static const double m = 1.0;
-
-static double l0 = 200.0;
-
-static asc::RK4 integrator;
+static std::vector<phys::Body2d> mass_points = {};
+static phys::Body2d *control_point           = nullptr;
+static std::vector<phys::Spring2d> springs   = {};
+static std::vector<phys::Damper2d> dampers   = {};
 
 static void system(const asc::state_t &x, asc::state_t &D, const double t)
 {
+    for (auto &spring : springs)
+        spring(x, D, t);
+    for (auto &damper : dampers)
+        damper(x, D, t);
+    for (auto &point : mass_points) {
+        if (&point == control_point)
+            continue;
 
+        point(x, D, t);
+    }
 }
 
 void init()
 {
-    body.setFillColor(sf::Color::Black);
-    body.setOutlineColor(sf::Color::White);
-    body.setOutlineThickness(-4);
+    state.reserve(LINE_NUM_POINTS*4*2);
+    phys::set_world_bbox(0, 0, 1920, 900); // @TODO: make api for resolution query
 
-    pos_x = 960;
-    pos_y = 540;
-    vel_x = 0;
-    vel_y = 0;
+    for (int i = 0; i < LINE_NUM_POINTS; i++) {
+        float angle = i * 2.f * M_PI / LINE_NUM_POINTS;
+        sf::Vector2f pos(960 + 100*cosf(angle), 540 + 100*sinf(angle));
+        mass_points.emplace_back(state);
+        mass_points[i].m = 1.0;
+        mass_points[i].x = pos.x;
+        mass_points[i].y = pos.y;
+        mass_points[i].vx = mass_points[i].vy = 0.0;
+    }
+    control_point = &mass_points[0];
 
-    state.reserve(100);
+    for (int i = 0; i < LINE_NUM_POINTS; i++) {
+        springs.emplace_back(mass_points[i], mass_points[(i+1) % LINE_NUM_POINTS]);
+        dampers.emplace_back(mass_points[i], mass_points[(i+1) % LINE_NUM_POINTS]);
+        springs[i].k = 10000.0;
+        dampers[i].c = 0.025;
+    }
 }
 
-void update(float dt, float time)
+void update(float dt, const input_t &input)
 {
-    ball_pos = sf::Vector2f(960, 540) + 100.f * sf::Vector2f(sinf(time), cosf(time));
-    ball_center = ball_pos + sf::Vector2f(body.getRadius(), body.getRadius());
-    ball_anchor = ball_center + vnormalize(spring_anchor - ball_center) * body.getRadius();
+    control_point->x = input.mouse_x;
+    control_point->y = input.mouse_y;
+
+    integrator(system, state, time, (double)dt);
+
+    for (int i = 0; i < LINE_NUM_POINTS; i++)
+        point_positions[i] = sf::Vector2f((float)mass_points[i].x, (float)mass_points[i].y);
 }
 
 void draw(sf::RenderWindow &view)
 {
-    body.setPosition(ball_pos);
-    spring.SetPositions(spring_anchor, ball_anchor);
+    shape.SetPositions(point_positions, LINE_NUM_POINTS);
 
     view.clear();
     {
-        view.draw(spring);
-        view.draw(body);
+        view.draw(shape);
     }
     view.display();
 }
