@@ -1,5 +1,7 @@
 #include "phys.hpp"
 
+#include <cassert>
+
 namespace phys
 {
 
@@ -33,6 +35,23 @@ void clamp_body_params_by_world_box(asc::Param &x, asc::Param &y, asc::Param &vx
         if (vy > 0)
             vy = 0;
     }
+}
+
+box2d_t get_body_family_bbox(const Body2d *bodies, size_t springs_cnt)
+{
+    assert(springs_cnt > 0);
+    box2d_t box = {{bodies[0].x, bodies[0].y}, {bodies[0].x, bodies[0].y}};
+    for (const Body2d *body = bodies; body-bodies < springs_cnt; body++) {
+        if (body->x < box.min.x)
+            box.min.x = body->x;
+        if (body->y < box.min.y)
+            box.min.y = body->y;
+        if (body->x > box.max.x)
+            box.max.x = body->x;
+        if (body->y > box.max.y)
+            box.max.y = body->y;
+    }
+    return box;
 }
 
 }

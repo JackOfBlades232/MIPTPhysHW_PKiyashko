@@ -29,6 +29,18 @@ LRESULT CALLBACK on_event(HWND handle, UINT message, WPARAM wParam, LPARAM lPara
         input.mouse_y = GET_Y_LPARAM(lParam);
     } break;
 
+    case WM_LBUTTONDOWN:
+    {
+        input.mouse_down = true;
+    } break;
+
+    case WM_LBUTTONUP:
+    {
+        if (input.mouse_down)
+            input.mouse_clicked = true;
+        input.mouse_down = false;
+    }
+
     default:
         break;
     }
@@ -74,6 +86,8 @@ int main()
             prev_time = time;
 
             sim::update(dt, input);
+            input.mouse_clicked = false; // @TODO: less hacky
+
             sim::draw(view);
         }
     }

@@ -9,12 +9,9 @@
 namespace phys
 {
 
-using vec2d_t = sf::Vector2<double>;
-struct box2d_t {
-    vec2d_t min, max;
-};
-
 static constexpr double GRAVITY = 9.80665;
+static constexpr double R = 8.314462618;
+
 static constexpr double FORCE_SCALE = 10.0;
 
 void set_world_bbox(double xmin, double ymin, double xmax, double ymax);
@@ -70,7 +67,6 @@ struct Damper2d {
 };
 
 struct Spring2d {
-
     Body2d &b0;
     Body2d &b1;
 
@@ -91,5 +87,32 @@ struct Spring2d {
         b1.f += f;
     }
 };
+
+struct Pressure2d {
+    Spring2d *springs;
+    size_t springs_cnt;
+
+    double area{};
+    double nt{}; // nu of the gas * temperature (presume constant)
+
+    Pressure2d(Spring2d *springs, size_t cnt) : springs(springs), springs_cnt(cnt) {}
+
+    void operator()(const asc::state_t &, asc::state_t &, const double)
+    {
+        for (size_t i = 0; i < springs_cnt; i++) {
+            Spring2d &spring = springs[i];
+            
+            vec2d_t side = vec2d_t{spring.b1.x, spring.b1.y} - vec2d_t{spring.b0.x, spring.b0.y};
+            vec2d_t norm = vnormalize(vec2d_t{side.y, -side.x});
+            double len = vlen(side);
+
+            double f = len * nt * R / area; // pressure = nu*R*T/V, force = pressure*area, V->area, area->len in 2d case
+            spring.b0.f += norm * f;
+            spring.b1.f += norm * f;
+        }
+    }
+};
+
+box2d_t get_body_family_bbox(const Body2d *bodies, size_t springs_cnt);
 
 }
