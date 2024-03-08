@@ -15,7 +15,7 @@ static constexpr double R = 8.314462618;
 static constexpr double FORCE_SCALE = 10.0;
 
 void set_world_bbox(double xmin, double ymin, double xmax, double ymax);
-void clamp_body_params_by_world_box(asc::Param &x, asc::Param &y, asc::Param &vx, asc::Param &vy);
+vec2d_t get_constraint_force_from_world_box(double x, double y, double vx, double vy);
 
 // @TODO: make gravity optional
 struct Body2d {
@@ -31,6 +31,8 @@ struct Body2d {
         x(D) = vx;
         y(D) = vy;
 
+        f += get_constraint_force_from_world_box(x, y, vx, vy);
+
         if (m > 0.0) {
             vx(D) = FORCE_SCALE * f.x/m;
             vy(D) = FORCE_SCALE * (f.y/m + GRAVITY);
@@ -38,8 +40,6 @@ struct Body2d {
             vx(D) = vy(D) = 0.0;
 
         f.x = f.y = 0.0;
-
-        clamp_body_params_by_world_box(x, y, vx, vy);
     }
 
     vec2d_t Pos() const { return vec2d_t((double)x, (double)y); }

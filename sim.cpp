@@ -13,8 +13,8 @@
 namespace sim
 {
 
-static constexpr double CLICK_SPEED = 700.0;
-static constexpr double MAX_ADDED_SPEED = 1500.0;
+static constexpr double CLICK_SPEED = 500.0;
+static constexpr double MAX_ADDED_SPEED = 900.0;
 
 static constexpr int LINE_NUM_POINTS = 20;
 
