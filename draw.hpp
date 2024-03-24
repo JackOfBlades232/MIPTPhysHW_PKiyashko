@@ -21,13 +21,12 @@ public:
         }
     }
 
-    void SetPositions(const sf::Vector2f *positions, size_t position_cnt) {
-        assert(position_cnt == t_num_points);
-        for (size_t i = 0; i < t_num_points; i++) {
-            m_points[i].setPosition(positions[i]);
-            m_line_nodes[i].position = positions[i] + sf::Vector2f(m_points[i].getRadius(), m_points[i].getRadius());
-        }
-        m_line_nodes[t_num_points].position = m_line_nodes[0].position;
+    void SetPointPosition(size_t point_id, sf::Vector2f position) {
+        assert(point_id < t_num_points);
+        m_points[point_id].setPosition(position);
+        m_line_nodes[point_id].position = position + sf::Vector2f(m_points[point_id].getRadius(), m_points[point_id].getRadius());
+        if (point_id == 0)
+            m_line_nodes[t_num_points].position = m_line_nodes[point_id].position;
     }
 
     virtual void draw(sf::RenderTarget &target, sf::RenderStates states) const override { 

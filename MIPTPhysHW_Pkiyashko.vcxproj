@@ -140,12 +140,14 @@
     <ClCompile Include="main.cpp" />
     <ClCompile Include="phys.cpp" />
     <ClCompile Include="sim.cpp" />
+    <ClCompile Include="span.cpp" />
     <ClCompile Include="utils.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="draw.hpp" />
     <ClInclude Include="phys.hpp" />
     <ClInclude Include="sim.hpp" />
+    <ClInclude Include="span.hpp" />
     <ClInclude Include="utils.hpp" />
     <ClInclude Include="win.hpp" />
   </ItemGroup>

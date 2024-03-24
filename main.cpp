@@ -3,6 +3,8 @@
 
 #include <SFML/Graphics.hpp>
 #include <ascent/Ascent.h>
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
 #include <windows.h>
 #include <windowsx.h>
 
@@ -86,7 +88,7 @@ int main()
             prev_time = time;
 
             sim::update(dt, input);
-            input.mouse_clicked = false; // @TODO: less hacky
+            input.mouse_clicked = false; // @TODO(PKiyashko): remake input with SFML
 
             sim::draw(view);
         }
