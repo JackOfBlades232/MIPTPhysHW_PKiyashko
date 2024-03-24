@@ -8,7 +8,7 @@
 namespace phys
 {
 
-static constexpr double c_force_scale = 10.0;
+static constexpr double c_force_scale = 150.0;
 static constexpr double c_gravity     = 9.80665;
 
 class VerletMassPoint2d;
@@ -46,6 +46,7 @@ public:
     void AccumulateForces() { m_force = c_force_scale * vec2d_t{0.0, c_gravity}; }
 
     vec2d_t GetPosition() const { return m_pos; }
+    void SetVelocity(vec2d_t vel) { m_pos = m_prev_pos + vel; }
 };
 
 class Verlet2PointsConstraint2d {
@@ -72,43 +73,33 @@ public:
 };
 
 class VerletGasPressureConstraint2d {
-    double m_rest_area = 0.0;
+    double m_rest_length      = 0.0;
     double m_relaxation_coeff = 1.0;
 
 public:
     VerletGasPressureConstraint2d() = default;
-    explicit VerletGasPressureConstraint2d(double rest_area, double relaxation_coeff)
-        : m_rest_area(rest_area), m_relaxation_coeff(relaxation_coeff) {}
+    explicit VerletGasPressureConstraint2d(double rest_length, double relaxation_coeff)
+        : m_rest_length(rest_length), m_relaxation_coeff(relaxation_coeff) {}
 
     // @FEATURE(PKiyashko): this could be remade to take an interface/be templated to
     //                      be able to take any container, even not contiguous.
     // @SPEED(PKiyashko):   This is, again, not necessarily optimal.
     void Apply(Span<VerletMassPoint2d> points) {
-        // Area by shoelace formula (sum of oriented trapezoid areas)
-        double area = 0.0;
         vec2d_t mass_center{};
-        for (size_t i = 0; i < points.Size(); ++i) {
-            size_t ip1 = i == points.Size()-1 ? 0 : i+1;
-            area += (points[i].m_pos.y + points[ip1].m_pos.y) * (points[i].m_pos.x - points[ip1].m_pos.x);
-            mass_center += points[i].m_pos;
-        }
-        area *= 0.5;
+        for (VerletMassPoint2d &point : points)
+            mass_center += point.m_pos;
         mass_center /= (double)points.Size();
-
-        // @SPEED(PKiyashko): will storing inv_rest_area be faster?
-        double area_coeff = area / m_rest_area;
-        double linear_offset_coeff = sqrt(area_coeff) - 1.0;
 
         // @TODO(PKiyashko): This does not take masses into account.
         //                   I don't quite understand how to factor in masses properly,
         //                   meaning, that it is unclear how to distribute constraints to points w/
         //                   different masses. This may be useful to return to.
+        // @TODO(PKiyashko): This looks almost like simple 2d contraints. If successful, consider pulling out.
         for (VerletMassPoint2d &point : points) {
-            vec2d_t radial_vector = point.m_pos - mass_center;
+            vec2d_t offset = point.m_pos - mass_center;
+            double length  = vlen(offset);
             // Negated because we are counteracting the offset
-            double full_offset = -vlen(radial_vector) * linear_offset_coeff * m_relaxation_coeff;
-
-            point.m_pos += vnormalize(radial_vector) * full_offset;
+            point.m_pos -= vnormalize(offset) * (length - m_rest_length) * m_relaxation_coeff;
         }
     }
 };
