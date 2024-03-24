@@ -20,8 +20,13 @@ static double accumulated_dt = 0.0;
 
 /// Sim specific state ///
 static constexpr int c_line_num_points = 20;
+
 static draw::CircularLine<c_line_num_points> softbody_shape(7, sf::Color(255, 0, 0, 255));
-static std::array<phys::VerletMassPoint2d, c_line_num_points> mass_points;
+
+static constexpr int c_constraint_iterations = 20;
+
+static std::array<phys::VerletMassPoint2d, c_line_num_points>       mass_points;
+static std::array<phys::Verlet2PointsConstraint, c_line_num_points> edge_constraints;
 
 static double time = 0.0;
 
@@ -30,9 +35,9 @@ void init()
     render_shapes.push_back(&softbody_shape);
 
     for (size_t id = 0; id < c_line_num_points; ++id) {
-        phys::VerletMassPoint2d &point = mass_points[id];
         double angle = 2.0 * M_PI * id / c_line_num_points;
-        point = phys::VerletMassPoint2d(vec2d_t{400.0, 200.0} + 100.0*vec2d_t{cos(angle), sin(angle)}, 1.0);
+        mass_points[id]      = phys::VerletMassPoint2d(vec2d_t{400.0, 200.0} + 100.0*vec2d_t{cos(angle), sin(angle)}, 1.0);
+        edge_constraints[id] = phys::Verlet2PointsConstraint(31.286893008, 0.5);
     }
 
     phys::set_world_bbox(100, 100, 1820, 980);
@@ -47,7 +52,12 @@ void update(float dt, const input_t &input)
             mass_point.AccumulateForces();
         for (phys::VerletMassPoint2d &mass_point : mass_points)
             mass_point.Integrate(c_fixed_dt);
-        phys::verlet_apply_world_constraints(make_span(mass_points.data(), mass_points.size()));
+
+        for (int i = 0; i < c_constraint_iterations; ++i) {
+            for (size_t j = 0; j < c_line_num_points; ++j)
+                edge_constraints[j].Apply(mass_points[j], mass_points[(j + 1) % c_line_num_points]);
+            phys::verlet_apply_world_constraints(make_span(mass_points.data(), mass_points.size()));
+        }
 
         accumulated_dt -= c_fixed_dt;
     }
