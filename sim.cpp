@@ -25,7 +25,7 @@ static constexpr int c_line_num_points = 20;
 static draw::Box                             world_box(88, 88, 1832, 992);
 static draw::CircularLine<c_line_num_points> softbody_shape(7, sf::Color(255, 0, 0, 255));
 
-static constexpr int c_constraint_iterations = 1;
+static constexpr int c_constraint_iterations = 2;
 
 static std::array<phys::VerletMassPoint2d, c_line_num_points>         mass_points;
 static std::array<phys::Verlet2PointsConstraint2d, c_line_num_points> edge_constraints;
@@ -44,9 +44,9 @@ void init()
         double angle = 2.0 * M_PI * id / c_line_num_points;
         mass_points[id]      = phys::VerletMassPoint2d(vec2d_t{400.0, 200.0} + 100.0*vec2d_t{cos(angle), sin(angle)}, 
                                                        1.0, 0.99);
-        edge_constraints[id] = phys::Verlet2PointsConstraint2d(31.286893008, 0.35);
+        edge_constraints[id] = phys::Verlet2PointsConstraint2d(31.286893008, 0.5);
     }
-    pressure_constraint = phys::VerletGasPressureConstraint2d(100.0, 0.1);
+    pressure_constraint = phys::VerletGasPressureConstraint2d(59432.35113, 0.1);
 
     phys::set_world_bbox(100, 100, 1820, 980);
 }
