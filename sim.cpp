@@ -22,16 +22,16 @@ static double accumulated_dt = 0.0;
 static constexpr int c_line_num_points = 20;
 
 // @NOTE(PKiyashko): setting these constants separately in two places, while they are matched, lazy)
-static draw::Box                             world_box(88, 88, 1832, 992);
+static draw::Box                             world_box(101, 101, 993, 993);
 static draw::CircularLine<c_line_num_points> softbody_shape(7, sf::Color(255, 0, 0, 255));
 
-static constexpr int c_constraint_iterations = 2;
+static constexpr int c_constraint_iterations = 4;
 
 static std::array<phys::VerletMassPoint2d, c_line_num_points>         mass_points;
 static std::array<phys::Verlet2PointsConstraint2d, c_line_num_points> edge_constraints;
-static phys::VerletGasPressureConstraint2d                            pressure_constraint;
+static phys::VerletPressureConstraint2d                            pressure_constraint;
 
-static constexpr double c_click_velocity = 20.0;
+static constexpr double c_click_velocity = 15.0;
 
 static double time = 0.0;
 
@@ -44,11 +44,11 @@ void init()
         double angle = 2.0 * M_PI * id / c_line_num_points;
         mass_points[id]      = phys::VerletMassPoint2d(vec2d_t{400.0, 200.0} + 100.0*vec2d_t{cos(angle), sin(angle)}, 
                                                        1.0, 0.99);
-        edge_constraints[id] = phys::Verlet2PointsConstraint2d(31.286893008, 0.5);
+        edge_constraints[id] = phys::Verlet2PointsConstraint2d(30.0, 0.5);
     }
-    pressure_constraint = phys::VerletGasPressureConstraint2d(59432.35113, 0.1);
+    pressure_constraint = phys::VerletPressureConstraint2d(35000.0, 0.25);
 
-    phys::set_world_bbox(100, 100, 1820, 980);
+    phys::set_world_bbox(100, 100, 980, 980);
 }
 
 void update(float dt, const input_t &input)

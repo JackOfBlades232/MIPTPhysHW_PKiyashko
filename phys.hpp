@@ -21,7 +21,7 @@ void verlet_apply_world_constraints(Span<VerletMassPoint2d> points);
 class VerletMassPoint2d {
     friend void verlet_apply_world_constraints(Span<VerletMassPoint2d>);
     friend class Verlet2PointsConstraint2d;
-    friend class VerletGasPressureConstraint2d;
+    friend class VerletPressureConstraint2d;
 
     vec2d_t m_pos      {};
     vec2d_t m_prev_pos {};
@@ -72,13 +72,13 @@ public:
     }
 };
 
-class VerletGasPressureConstraint2d {
+class VerletPressureConstraint2d {
     double m_rest_area = 0.0;
     double m_relaxation_coeff = 1.0;
 
 public:
-    VerletGasPressureConstraint2d() = default;
-    explicit VerletGasPressureConstraint2d(double rest_area, double relaxation_coeff)
+    VerletPressureConstraint2d() = default;
+    explicit VerletPressureConstraint2d(double rest_area, double relaxation_coeff)
         : m_rest_area(rest_area), m_relaxation_coeff(relaxation_coeff) {}
 
     // @FEATURE(PKiyashko): this could be remade to take an interface/be templated to
