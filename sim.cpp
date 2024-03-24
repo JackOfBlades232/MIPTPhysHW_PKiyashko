@@ -1,68 +1,115 @@
 #include "sim.hpp"
 #include "draw.hpp"
+#include "phys.hpp"
 
 #include <ascent/Ascent.h>
+
+#include <vector>
+#include <memory>
+
+#include <cmath>
+#define M_PI 3.14159265358979323846   // pi
 
 namespace sim
 {
 
-static sf::CircleShape body(35);
-static Spring<30> spring(25.f, 50.f);
-static sf::Vector2f spring_anchor = sf::Vector2f(960, 220);
+static constexpr double CLICK_SPEED = 500.0;
+static constexpr double MAX_ADDED_SPEED = 900.0;
 
-static sf::Vector2f ball_pos;
-static sf::Vector2f ball_center;
-static sf::Vector2f ball_anchor;
+static constexpr int LINE_NUM_POINTS = 20;
 
+static draw::CircularLine<LINE_NUM_POINTS> shape(7, sf::Color(255, 0, 0, 255));
+static sf::Vector2f point_positions[LINE_NUM_POINTS];
+
+static double time = 0.0;
+static asc::Euler integrator;
 static asc::state_t state;
 
-static asc::Param pos_x(state), pos_y(state);
-static asc::Param vel_x(state), vel_y(state);
-
-static const double k = 2000.0;
-static const double d = 5.0;
-static const double g = 10.0;
-static const double m = 1.0;
-
-static double l0 = 200.0;
-
-static asc::RK4 integrator;
+static std::vector<phys::Body2d> mass_points      = {};
+static std::vector<phys::Spring2d> springs        = {};
+static std::vector<phys::Damper2d> dampers        = {};
+static std::unique_ptr<phys::Pressure2d> pressure = nullptr;
 
 static void system(const asc::state_t &x, asc::state_t &D, const double t)
 {
-
+    (*pressure)(x, D, t);
+    for (auto &spring : springs)
+        spring(x, D, t);
+    for (auto &damper : dampers)
+        damper(x, D, t);
+    for (auto &point : mass_points)
+        point(x, D, t);
 }
 
 void init()
 {
-    body.setFillColor(sf::Color::Black);
-    body.setOutlineColor(sf::Color::White);
-    body.setOutlineThickness(-4);
+    state.reserve(LINE_NUM_POINTS*4*2);
+    phys::set_world_bbox(0, 0, 1800, 900); // @TODO: make api for resolution query
 
-    pos_x = 960;
-    pos_y = 540;
-    vel_x = 0;
-    vel_y = 0;
+    mass_points.reserve(LINE_NUM_POINTS);
+    springs.reserve(LINE_NUM_POINTS);
+    dampers.reserve(LINE_NUM_POINTS);
 
-    state.reserve(100);
+    for (int i = 0; i < LINE_NUM_POINTS; ++i) {
+        float angle = i * 2.f * M_PI / LINE_NUM_POINTS;
+        sf::Vector2f pos(150 + 100*cosf(angle), 750 + 100*sinf(angle));
+        mass_points.emplace_back(state);
+        mass_points[i].m = 1.0;
+        mass_points[i].x = pos.x;
+        mass_points[i].y = pos.y;
+        mass_points[i].vx = mass_points[i].vy = 0.0;
+    }
+
+    for (int i = 0; i < LINE_NUM_POINTS; ++i) {
+        springs.emplace_back(mass_points[i], mass_points[(i+1) % LINE_NUM_POINTS]);
+        dampers.emplace_back(mass_points[i], mass_points[(i+1) % LINE_NUM_POINTS]);
+        springs[i].k = 1e4;
+        dampers[i].c = 5.0;
+    }
+
+    pressure = std::make_unique<phys::Pressure2d>(springs.data(), springs.size());
+    pressure->nt = 2000.0;
 }
 
-void update(float dt, float time)
+void update(float dt, const input_t &input)
 {
-    ball_pos = sf::Vector2f(960, 540) + 100.f * sf::Vector2f(sinf(time), cosf(time));
-    ball_center = ball_pos + sf::Vector2f(body.getRadius(), body.getRadius());
-    ball_anchor = ball_center + vnormalize(spring_anchor - ball_center) * body.getRadius();
+    if (input.mouse_clicked) {
+        vec2d_t mass_center{};
+        for (const phys::Body2d &body : mass_points)
+            mass_center += vec2d_t{body.x, body.y};
+        mass_center /= (double)LINE_NUM_POINTS;
+
+        vec2d_t offset = CLICK_SPEED * vnormalize(vec2d_t{input.mouse_x, input.mouse_y} - mass_center);
+
+        for (const phys::Body2d &body : mass_points) {
+            body.vx += offset.x;
+            body.vy += offset.y;
+            vec2d_t v{body.vx, body.vy};
+            double speed = vlen(v);
+            if (speed > MAX_ADDED_SPEED) {
+                vec2d_t clampVelocityVal = vnormalize(v) * (MAX_ADDED_SPEED - speed);
+                body.vx += clampVelocityVal.x;
+                body.vy += clampVelocityVal.y;
+            }
+        }
+    }
+
+    box2d_t points_bbox = phys::get_body_family_bbox(mass_points.data(), mass_points.size());
+    pressure->area = (points_bbox.max.x - points_bbox.min.x) * (points_bbox.max.y - points_bbox.min.y);
+
+    integrator(system, state, time, (double)dt);
+
+    for (int i = 0; i < LINE_NUM_POINTS; ++i)
+        point_positions[i] = sf::Vector2f((float)mass_points[i].x, (float)mass_points[i].y);
 }
 
 void draw(sf::RenderWindow &view)
 {
-    body.setPosition(ball_pos);
-    spring.SetPositions(spring_anchor, ball_anchor);
+    shape.SetPositions(point_positions, LINE_NUM_POINTS);
 
     view.clear();
     {
-        view.draw(spring);
-        view.draw(body);
+        view.draw(shape);
     }
     view.display();
 }

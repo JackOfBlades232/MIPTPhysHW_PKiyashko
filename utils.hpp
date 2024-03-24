@@ -4,5 +4,13 @@
 
 #include <cmath>
 
-inline float vlen(sf::Vector2f v) { return sqrtf(v.x*v.x + v.y*v.y); }
-inline sf::Vector2f vnormalize(sf::Vector2f v) { return v / vlen(v); }
+using vec2d_t = sf::Vector2<double>;
+struct box2d_t {
+    vec2d_t min, max;
+};
+
+template <class T>
+inline T vlen(sf::Vector2<T> v) { return sqrtf(v.x*v.x + v.y*v.y); }
+template <class T>
+inline sf::Vector2<T> vnormalize(sf::Vector2<T> v) { return v / vlen(v); }
+
