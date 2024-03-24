@@ -15,6 +15,8 @@ namespace sim
 
 /// State for all simulations ///
 static std::vector<const sf::Drawable *> render_shapes{};
+static constexpr double c_fixed_dt = 1.0/120.0;
+static double accumulated_dt = 0.0;
 
 /// Sim specific state ///
 static constexpr int c_line_num_points = 20;
@@ -38,12 +40,17 @@ void init()
 
 void update(float dt, const input_t &input)
 {
-    // @TODO(PKiyashko): this would really really be better with SOA, redo at least in next HW.
-    for (phys::VerletMassPoint2d &mass_point : mass_points)
-        mass_point.AccumulateForces();
-    for (phys::VerletMassPoint2d &mass_point : mass_points)
-        mass_point.Integrate(dt);
-    phys::verlet_apply_world_constraints(make_span(mass_points.data(), mass_points.size()));
+    accumulated_dt += dt;
+    while (accumulated_dt >= c_fixed_dt) {
+        // @TODO(PKiyashko): this would really really be better with SOA, redo at least in next HW.
+        for (phys::VerletMassPoint2d &mass_point : mass_points)
+            mass_point.AccumulateForces();
+        for (phys::VerletMassPoint2d &mass_point : mass_points)
+            mass_point.Integrate(c_fixed_dt);
+        phys::verlet_apply_world_constraints(make_span(mass_points.data(), mass_points.size()));
+
+        accumulated_dt -= c_fixed_dt;
+    }
     
     for (size_t id = 0; id < c_line_num_points; ++id)
         softbody_shape.SetPointPosition(id, sf::Vector2f(mass_points[id].GetPosition()));
