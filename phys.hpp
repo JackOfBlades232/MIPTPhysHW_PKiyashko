@@ -91,7 +91,7 @@ public:
         for (size_t i = 0; i < points.Size(); ++i) {
             size_t ip1 = i == points.Size()-1 ? 0 : i+1;
             area += (points[i].m_pos.y + points[ip1].m_pos.y) * (points[i].m_pos.x - points[ip1].m_pos.x);
-            mass_center += points[i].m_pos;
+            mass_center += points[i].m_pos * points[i].m_mass;
         }
         area *= 0.5;
         mass_center /= (double)points.Size();
@@ -116,8 +116,12 @@ public:
             vec2d_t norm1 = vnormalize(vec2d_t{edge1.y, -edge1.x});
             vec2d_t norm2 = vnormalize(vec2d_t{edge2.y, -edge2.x});
 
-            required_offsets[i] = vnormalize((norm1 + norm2) * 0.5) * full_offset;
+            double w1 = vlen(edge1) / (vlen(edge1) + vlen(edge2));
+            double w2 = 1.0 - w1;
+
+            required_offsets[i] = vnormalize(norm1*w1 + norm2*w2) * full_offset;
         }
+        // @TODO: F
         for (size_t i = 0; i < points.Size(); ++i)
             points[i].m_pos += required_offsets[i];
     }
