@@ -104,13 +104,22 @@ public:
         //                   I don't quite understand how to factor in masses properly,
         //                   meaning, that it is unclear how to distribute constraints to points w/
         //                   different masses. This may be useful to return to.
-        for (VerletMassPoint2d &point : points) {
-            vec2d_t radial_vector = point.m_pos - mass_center;
+        std::vector<vec2d_t> required_offsets(points.Size());
+        for (size_t i = 0; i < points.Size(); ++i) {
+            vec2d_t radial_vector = points[i].m_pos - mass_center;
             // Negated because we are counteracting the offset
             double full_offset = -vlen(radial_vector) * linear_offset_coeff * m_relaxation_coeff;
 
-            point.m_pos += vnormalize(radial_vector) * full_offset;
+            vec2d_t edge1 = points[i].m_pos - points[i == 0 ? points.Size()-1 : i-1].m_pos;
+            vec2d_t edge2 = points[i == points.Size()-1 ? 0 : i+1].m_pos - points[i].m_pos;
+
+            vec2d_t norm1 = vnormalize(vec2d_t{edge1.y, -edge1.x});
+            vec2d_t norm2 = vnormalize(vec2d_t{edge2.y, -edge2.x});
+
+            required_offsets[i] = vnormalize((norm1 + norm2) * 0.5) * full_offset;
         }
+        for (size_t i = 0; i < points.Size(); ++i)
+            points[i].m_pos += required_offsets[i];
     }
 };
 
