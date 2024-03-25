@@ -27,31 +27,60 @@ public:
     }
 };
 
-template <size_t t_num_points>
-class CircularLine : public sf::Drawable {
-    sf::CircleShape m_points[t_num_points];
-    sf::Vertex m_line_nodes[t_num_points + 1];
+template <size_t t_dim>
+class Sponge : public sf::Drawable {
+    sf::CircleShape m_points[t_dim][t_dim];
+
+    // @SPEED(PKiyashko): if this needs to go faster, 
+    //                    I should cache the lines connecting the dots.
 
 public:
-    CircularLine(float point_rad, sf::Color point_color) {
-        for (auto &point : m_points) {
-            point = sf::CircleShape(point_rad);
-            point.setFillColor(point_color);
-        }
+    Sponge(float point_rad, sf::Color point_color) {
+        for (size_t y = 0; y < t_dim; ++y)
+            for (size_t x = 0; x < t_dim; ++x) {
+                sf::CircleShape &point = m_points[y][x];
+                point = sf::CircleShape(point_rad);
+                point.setFillColor(point_color);
+            }
     }
 
-    void SetPointPosition(size_t point_id, sf::Vector2f position) {
-        assert(point_id < t_num_points);
-        m_points[point_id].setPosition(position);
-        m_line_nodes[point_id].position = position + sf::Vector2f(m_points[point_id].getRadius(), m_points[point_id].getRadius());
-        if (point_id == 0)
-            m_line_nodes[t_num_points].position = m_line_nodes[point_id].position;
+    void SetPointPosition(size_t point_x_id, size_t point_y_id, sf::Vector2f position) {
+        assert(point_x_id < t_num_points);
+        assert(point_y_id < t_num_points);
+        m_points[point_y_id][point_x_id].setPosition(position);
     }
 
     virtual void draw(sf::RenderTarget &target, sf::RenderStates states) const override { 
-        target.draw(m_line_nodes, t_num_points + 1, sf::LinesStrip, states);
-        for (auto &point : m_points)
-            target.draw(point, states);
+        sf::Vertex line[2];
+        float radius = m_points[0][0].getRadius();
+        sf::Vector2f rad_offset = sf::Vector2f(radius, radius);
+        for (size_t y = 0; y < t_dim; ++y)
+            for (size_t x = 0; x < t_dim; ++x) {
+                line[0].position = m_points[y][x].getPosition() + rad_offset;
+                // Left
+                if (x < t_dim-1) {
+                    line[1].position = m_points[y][x+1].getPosition() + rad_offset;
+                    target.draw(line, 2, sf::LinesStrip, states);
+                }
+                // Down
+                if (y < t_dim-1) {
+                    line[1].position = m_points[y+1][x].getPosition() + rad_offset;
+                    target.draw(line, 2, sf::LinesStrip, states);
+                }
+                // Diag down to the right
+                if (x < t_dim-1 && y < t_dim-1) {
+                    line[1].position = m_points[y+1][x+1].getPosition() + rad_offset;
+                    target.draw(line, 2, sf::LinesStrip, states);
+                }
+                // Diag up to the right
+                if (x < t_dim-1 && y > 0) {
+                    line[1].position = m_points[y-1][x+1].getPosition() + rad_offset;
+                    target.draw(line, 2, sf::LinesStrip, states);
+                }
+            }
+        for (size_t y = 0; y < t_dim; ++y)
+            for (size_t x = 0; x < t_dim; ++x)
+                target.draw(m_points[y][x], states);
     }
 };
 
